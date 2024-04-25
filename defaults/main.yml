@@ -1,0 +1,28 @@
+---
+
+evebox_config_dir: /etc/evebox
+evebox_opensearch_host: "https://127.0.0.1"
+
+evebox_opensearch_auth:
+  username: admin
+  password: password
+
+evebox_server_config:
+  http:
+    host: 0.0.0.0
+
+  database:
+    elasticsearch:
+      enabled: true
+      index: index
+      password: password
+      url: "{{ evebox_opensearch_host }}"
+      username: username
+    input:
+      paths:
+        - "/var/log/suricata/eve.json"
+        - "/var/log/suricata/eve.*.json"
+
+evebox_server_users:
+  - username: admin
+    password: password

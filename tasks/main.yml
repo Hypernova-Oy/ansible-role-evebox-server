@@ -1,0 +1,67 @@
+---
+
+- name: Install dependencies
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - wget
+    - gnupg
+    - apt-transport-https
+
+- name: Add apt key
+  apt_key:
+    url: https://evebox.org/files/GPG-KEY-evebox
+    state: present
+
+- name: Add repository
+  apt_repository:
+    repo: deb http://evebox.org/files/debian stable main
+    state: present
+
+- name: Install EveBox
+  apt:
+    name: evebox
+    state: present
+    update_cache: true
+    cache_valid_time: 86400
+
+- name: Read evebox.yaml
+  slurp:
+    path: "{{ evebox_config_dir }}/evebox.yaml"
+  register: evebox_full_config
+
+- set_fact:
+    evebox_full_config: "{{ evebox_full_config['content'] | b64decode | from_yaml | combine(evebox_server_config) }}"
+
+- name: Write configurations to evebox.yaml
+  copy:
+    content: |
+      {{ evebox_full_config | to_nice_yaml(indent=2) }}
+    dest: "{{ evebox_config_dir }}/evebox.yaml"
+  notify:
+    - Restart EveBox
+
+- name: Enable EveBox systemd service
+  systemd_service:
+    name: evebox
+    state: started
+    enabled: true
+
+- name: Disable EveBox agent systemd service
+  systemd_service:
+    name: evebox-agent
+    state: stopped
+    enabled: false
+
+- name: Remove EveBox server users
+  command: "evebox config users rm {{ item.username }}"
+  failed_when: false
+  changed_when: false
+  with_items: "{{ evebox_server_users }}"
+
+- name: Add EveBox server users
+  command: "evebox config users add --username {{ item.username }} --password '{{ item.password }}'"
+  changed_when: false
+  with_items: "{{ evebox_server_users }}"
+
